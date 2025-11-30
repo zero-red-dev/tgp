@@ -3,6 +3,7 @@ source ../header.sh
 
 config_git() {
 	local prj_dir=${1:-"."}
+
 	rm -rf "$prj_dir/.git" ||
 		error "Can't remove unnecessary \"$prj_dir/.git\""
 

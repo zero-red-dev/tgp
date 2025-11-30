@@ -3,10 +3,23 @@ Tired of the repetitive npm create vite@latest and then tweaking the config for 
 
 ## Usage
 ### Quick start
-Initialize a new project with a single command. The current default template provides a TypeScript development environment powered by Vite and SWC for optimal performance.
+Initialize a new project with a single command. Choose from two specialized templates:
+
+- __vite-web__: For web applications - a TypeScript development environment powered by Vite and SWC for optimal performance
+
+- __vite-node__: For Node.js applications - a robust TypeScript setup for server-side development
+
+__Create a web application:__
 ```bash
-curl -fsSL https://raw.githubusercontent.com/zero-red-dev/tgp/refs/heads/zero/tpg.sh | bash -s <project_name>
+curl -fsSL https://raw.githubusercontent.com/zero-red-dev/tgp/refs/heads/zero/tpg.sh | bash -s my-webapp-name vite-web
 ```
+
+__Create a Node.js application:__
+```bash
+curl -fsSL https://raw.githubusercontent.com/zero-red-dev/tgp/refs/heads/zero/tpg.sh | bash -s my-nodeapp-name vite-node
+```
+
+Simply replace my-webapp-name or my-nodeapp-name with your desired project name.
 
 ## Why use this script?
 - Save Time: Eliminate boilerplate setup and start writing your actual code faster.

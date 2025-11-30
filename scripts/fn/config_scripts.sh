@@ -3,6 +3,7 @@ source ../header.sh
 
 config_scripts() {
 	local prj_dir=${1:-"."}
+	local prj_type=${2:-"vite-web"}
 	local scripts_dir="$dir/scripts"
 
 	if [[ ! -d $scripts_dir ]]; then

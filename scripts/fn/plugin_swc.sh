@@ -2,9 +2,11 @@
 source ../header.sh
 
 plugin_swc() {
-	local dir=${1:-"plugin"}
+	local prj_dir=${1:-"."}
+	local dir="$prj_dir/plugin"
 	local plugin_dir="$dir/swc"
 
+	pushd $prj_dir
 	if [[ ! -d $plugin_dir ]]; then
 		mkdir -p "$plugin_dir" ||
 			error "Failed to create directory \"$plugin_dir\""
@@ -77,4 +79,5 @@ fs.writeFile('$plugin_dir/index.ts', str, (writeErr) => {
 })
 EOF
 	)"
+	popd
 }
