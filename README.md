@@ -9,17 +9,26 @@ Initialize a new project with a single command. Choose from two specialized temp
 
 - __vite-node__: For Node.js applications - a robust TypeScript setup for server-side development
 
+- __vite-mono__: Monolith project for creating full-stack applications with both frontend and backend
+
+
 __Create a web application:__
 ```bash
-curl -fsSL https://raw.githubusercontent.com/zero-red-dev/tgp/refs/heads/zero/tpg.sh | bash -s my-webapp-name vite-web
+curl -fsSL https://raw.githubusercontent.com/zero-red-dev/tpg/refs/heads/zero/tpg.sh | bash -s my-webapp-name vite-web
 ```
 
 __Create a Node.js application:__
 ```bash
-curl -fsSL https://raw.githubusercontent.com/zero-red-dev/tgp/refs/heads/zero/tpg.sh | bash -s my-nodeapp-name vite-node
+curl -fsSL https://raw.githubusercontent.com/zero-red-dev/tpg/refs/heads/zero/tpg.sh | bash -s my-nodeapp-name vite-node
 ```
 
-Simply replace my-webapp-name or my-nodeapp-name with your desired project name.
+__Create a monolith full-stack application:__
+```bash
+curl -fsSL https://raw.githubusercontent.com/zero-red-dev/tpg/refs/heads/zero/tpg.sh | bash -s my-monoapp-name vite-mono
+```
+
+
+Simply replace __my-webapp-name__, __my-nodeapp-name__ or __my-monoapp-name__ with your desired project name.
 
 ## Why use this script?
 - Save Time: Eliminate boilerplate setup and start writing your actual code faster.

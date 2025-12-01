@@ -1,7 +1,41 @@
 #!/usr/bin/env bash
 source ./header.sh
 
-##############  input validation ##############
+##############  fn ##############
+create_project() {
+	local prj_dir=${1:-"."}
+	local prj_name=${2:-"my_app"}
+	local prj_type=${3:-"vite-web"}
+
+	info_bold "Start creating $prj_name project ..."
+
+	init_project $prj_dir $prj_name $prj_type
+	config_packagejs $prj_dir $prj_name $prj_type
+	config_tsconfigjson $prj_dir $prj_type
+	config_prettier $prj_dir
+	config_git $prj_dir
+	config_yarn $prj_dir $prj_type
+	plugin_swc $prj_dir $prj_type
+	config_viteconfigts $prj_dir $prj_type
+
+	if [[ "$prj_type" == "vite-web" ]]; then
+		create_indexhtml $prj_dir $prj_name
+		create_maints $prj_dir
+	elif [[ "$prj_type" == "vite-node" ]]; then
+		create_node__maints $prj_dir
+	fi
+
+	if [[ "$prj_type" == "vite-mono" ]]; then
+		config_scripts $prj_dir $prj_type
+		create_project "$prj_dir/packages/ui" "@$prj_name/ui" "vite-web"
+		create_project "$prj_dir/packages/server" "@$prj_name/server" "vite-node"
+	fi
+
+	success "$prj_name project done :)"
+}
+##############  ##############
+
+##############  Input Validation ##############
 if [[ ! $# -lt 1 ]]; then
 	project_name=$1
 else
@@ -11,6 +45,7 @@ fi
 project_type__options=(
 	"vite-web" "" on
 	"vite-node" "" off
+	"vite-mono" "" off
 )
 
 project_type__keys=()
@@ -43,22 +78,7 @@ if [[ $valid_type == false ]]; then
 	done
 	error "$project_type__error_msg"
 fi
-##############   ##############
+##############  ##############
 
 project_dir="$PWD/$project_name"
-create_project $project_dir $project_type
-
-config_packagejs $project_dir $project_type
-config_tsconfigjson $project_dir $project_type
-config_prettier $project_dir
-config_git $project_dir
-config_yarn $project_dir $project_type
-plugin_swc $project_dir
-config_viteconfigts $project_dir $project_type
-
-if [[ "$project_type" == "vite-web" ]]; then
-	create_indexhtml $project_dir $project_name
-	create_maints $project_dir
-elif [[ "$project_type" == "vite-node" ]]; then
-	create_node__maints $project_dir
-fi
+create_project $project_dir $project_name $project_type

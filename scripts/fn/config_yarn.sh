@@ -18,5 +18,11 @@ config_yarn() {
 		yarn add typescript nodemon concurrently vite @types/node @types/ws rollup-plugin-node-externals --dev
 		yarn add typescript hono @hono/node-server ws
 		popd
+	elif [[ "$prj_type" == "vite-mono" ]]; then
+		pushd $prj_dir
+		yarn config set nodeLinker node-modules
+		yarn
+		yarn add typescript concurrently --dev
+		popd
 	fi
 }

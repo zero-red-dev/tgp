@@ -20,7 +20,7 @@ create_node__maints() {
 		cat <<EOF
 const fs = require('fs')
 
-const str = \`
+const str1 = \`
 import { serve } from "@hono/node-server"
 import { Hono } from "hono"
 import { serveStatic } from "@hono/node-server/serve-static"
@@ -30,18 +30,15 @@ import pathNode from "path"
 const port = 3000
 const app = new Hono()
 
-/*
 app.use(
   "/*",
   serveStatic({
     root: ".",
-    rewriteRequestPath(path) {
-      if (path.match(/^\/api\//)) return ""
-      else return pathNode.join("statics", path)
-    },
+    rewriteRequestPath: (path) => {
+      return path.match(/^\\\\/api\\\\//) ? "" : pathNode.join("statics", path)
+    }
   }),
 )
-*/
 
 const server = serve(
   {
@@ -61,16 +58,77 @@ app.get("/api/hello", (c) => {
 wss.on("connection", (ws) => {
   ws.on("message", (data) => {
     const name = data.toString().split(" ").pop()
-    ws.send(\\\`Welcome \\\${name}, Thanks for visiting my website\\\`)
+    setTimeout(() => {
+      ws.send(\\\`Welcome \\\${name}, Thanks for visiting my website\\\`)
+    }, 2000);
   })
   ws.on("close", () => {})
 })
 \`
 
 
-fs.writeFile('$src_dir/main.ts', str, (writeErr) => {
+const str2 = \`
+body {
+  background-color: #232323;
+  color: #ffffff;
+}
+\`
+
+const str3 = \`
+const wss = new WebSocket("")
+const msg = document.querySelector("#msg")
+
+wss.addEventListener("open", () => {
+  wss.send("I'm Client")
+})
+
+wss.addEventListener("message", (e) => {
+  console.log(e.data)
+  msg.innerHTML = e.data
+})
+\`
+
+const str4 = \`
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Home</title>
+    <link href="./main.css" rel="stylesheet" />
+  </head>
+  <body>
+    <div id="msg"></div>
+    <h1>Simple Ui without anything fancy :)</h1>
+    <script src="./main.js"></script>
+  </body>
+</html>
+\`
+
+fs.writeFile('$src_dir/main.ts', str1, (writeErr) => {
     if (writeErr) {
         console.error('Error writing $src_dir/main.ts:', writeErr)
+        return
+    }
+})
+
+fs.writeFile('$statics_dir/main.css', str2, (writeErr) => {
+    if (writeErr) {
+        console.error('Error writing $statics_dir/main.css:', writeErr)
+        return
+    }
+})
+
+fs.writeFile('$statics_dir/main.js', str3, (writeErr) => {
+    if (writeErr) {
+        console.error('Error writing $statics_dir/main.js:', writeErr)
+        return
+    }
+})
+
+fs.writeFile('$statics_dir/index.html', str4, (writeErr) => {
+    if (writeErr) {
+        console.error('Error writing $statics_dir/index.html:', writeErr)
         return
     }
 })

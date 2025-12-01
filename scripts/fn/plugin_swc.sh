@@ -3,19 +3,21 @@ source ../header.sh
 
 plugin_swc() {
 	local prj_dir=${1:-"."}
+	local prj_type=${2:-"vite-web"}
 	local dir="$prj_dir/plugin"
 	local plugin_dir="$dir/swc"
 
-	pushd $prj_dir
-	if [[ ! -d $plugin_dir ]]; then
-		mkdir -p "$plugin_dir" ||
-			error "Failed to create directory \"$plugin_dir\""
-	fi
+	if [ "$prj_type" == "vite-web" ] || [ "$prj_type" == "vite-node" ]; then
+		pushd $prj_dir
+		if [[ ! -d $plugin_dir ]]; then
+			mkdir -p "$plugin_dir" ||
+				error "Failed to create directory \"$plugin_dir\""
+		fi
 
-	yarn add @swc/core @rollup/pluginutils --dev
+		yarn add @swc/core @rollup/pluginutils --dev
 
-	node -e "$(
-		cat <<EOF
+		node -e "$(
+			cat <<EOF
 const fs = require('fs')
 
 const str = \`
@@ -78,6 +80,7 @@ fs.writeFile('$plugin_dir/index.ts', str, (writeErr) => {
     }
 })
 EOF
-	)"
-	popd
+		)"
+		popd
+	fi
 }

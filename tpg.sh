@@ -125,7 +125,8 @@ EOF
 
 config_packagejs() {
 	local prj_dir=${1:-"."}
-	local prj_type=${2:-"vite-web"}
+	local prj_name=${2:-"my-app"}
+	local prj_type=${3:-"vite-web"}
 
 	if [[ "$prj_type" == "vite-web" ]]; then
 		node -e "$(
@@ -141,6 +142,7 @@ fs.readFile('$prj_dir/package.json', 'utf8', (err, data) => {
     try {
         const packageJson = JSON.parse(data)
 
+        packageJson.name = "$prj_name"
         packageJson.version = "0.0.0"
         packageJson.type = "module"
 
@@ -176,12 +178,60 @@ fs.readFile('$prj_dir/package.json', 'utf8', (err, data) => {
     try {
         const packageJson = JSON.parse(data)
 
+        packageJson.name = "$prj_name"
         packageJson.version = "0.0.0"
         packageJson.type = "module"
 
         packageJson.scripts = {}
         packageJson.scripts.dev = "tsc && concurrently -k \"tsc --watch\" \"nodemon --delay 2 --watch dist ./dist/main.js\""
         packageJson.scripts.build = "tsc && vite build"
+
+
+        fs.writeFile('$prj_dir/package.json', JSON.stringify(packageJson, null, 2), (writeErr) => {
+            if (writeErr) {
+                console.error('Error writing $prj_dir/package.json:', writeErr)
+                return
+            }
+        })
+    } catch (parseError) {
+      console.error('Error parsing JSON($prj_dir/package.json):', parseError)
+    }
+})
+EOF
+		)"
+	elif [[ "$prj_type" == "vite-mono" ]]; then
+		node -e "$(
+			cat <<EOF
+const fs = require('fs')
+
+fs.readFile('$prj_dir/package.json', 'utf8', (err, data) => {
+    if (err) {
+        console.error('Error reading $prj_dir/package.json:', err)
+        return
+    }
+
+    try {
+        const packageJson = JSON.parse(data)
+
+        packageJson.name = "$prj_name"
+        packageJson.version = "0.0.0"
+        packageJson.type = "module"
+        packageJson.workspaces = [
+          "packages/*"
+        ]
+
+        packageJson.scripts = {}
+
+        packageJson.scripts.build = "node scripts/build.js"
+        packageJson.scripts.start = "node scripts/start.js"
+
+        packageJson.scripts.dev = "concurrently --kill-others \"npm:server:dev\" \"npm:ui:dev\""
+        
+        packageJson.scripts["ui:dev"] = "yarn workspace @$prj_name/ui dev"
+        packageJson.scripts["ui:build"] = "yarn workspace @$prj_name/ui build"
+        
+        packageJson.scripts["server:dev"] = "yarn workspace @$prj_name/server dev"
+        packageJson.scripts["server:build"] = "yarn workspace @$prj_name/server build"
 
 
         fs.writeFile('$prj_dir/package.json', JSON.stringify(packageJson, null, 2), (writeErr) => {
@@ -240,15 +290,16 @@ EOF
 config_scripts() {
 	local prj_dir=${1:-"."}
 	local prj_type=${2:-"vite-web"}
-	local scripts_dir="$dir/scripts"
+	local scripts_dir="$prj_dir/scripts"
 
 	if [[ ! -d $scripts_dir ]]; then
 		mkdir -p "$scripts_dir" ||
 			error "Failed to create directory \"$scripts_dir\""
 	fi
 
-	node -e "$(
-		cat <<EOF
+	if [[ "$prj_type" == "vite-mono" ]]; then
+		node -e "$(
+			cat <<EOF
 const fs = require('fs')
 
 const str1 = \`
@@ -261,17 +312,44 @@ const cmd = (command, path = process.cwd()) =>
     cwd: path,
   })
 
-//cmd("yarn server:build")
+cmd("yarn server:build")
+cmd("yarn ui:build")
 
-cpSync(process.cwd() +"dist", process.cwd() + "dist-server/statics", {
-  recursive: true,
-})
-
-rmSync(process.cwd() + "/dist", {
+rmSync(\\\`\\\${process.cwd()}/dist\\\`, {
   force: true,
   recursive: true,
 })
+
+cpSync(\\\`\\\${process.cwd()}/packages/server/dist\\\`, \\\`\\\${process.cwd()}/dist\\\`, {
+  recursive: true,
+})
+
+cpSync(\\\`\\\${process.cwd()}/packages/ui/dist\\\`, \\\`\\\${process.cwd()}/dist/statics\\\`, {
+  recursive: true,
+})
 \`
+
+
+
+const str2 = \`
+import { execSync } from "child_process"
+import { cpSync, existsSync } from "fs"
+
+const cmd = (command, path = process.cwd()) =>
+  execSync(command, {
+    stdio: [0, 1, 2],
+    cwd: path,
+  })
+
+if (!existsSync(\\\`\\\${process.cwd()}/dist\\\`)) cmd("yarn build")
+
+cpSync(\\\`\\\${process.cwd()}/dist/statics\\\`, \\\`\\\${process.cwd()}/statics\\\`, {
+  recursive: true,
+})
+
+cmd("node dist/main.js")
+\`
+
 
 fs.writeFile('$scripts_dir/build.js', str1, (writeErr) => {
     if (writeErr) {
@@ -279,8 +357,16 @@ fs.writeFile('$scripts_dir/build.js', str1, (writeErr) => {
         return
     }
 })
+
+fs.writeFile('$scripts_dir/start.js', str2, (writeErr) => {
+    if (writeErr) {
+        console.error('Error writing $scripts_dir/start.js:', writeErr)
+        return
+    }
+})
 EOF
-	)"
+		)"
+	fi
 }
 
 config_tsconfigjson() {
@@ -481,6 +567,12 @@ config_yarn() {
 		yarn add typescript nodemon concurrently vite @types/node @types/ws rollup-plugin-node-externals --dev
 		yarn add typescript hono @hono/node-server ws
 		popd
+	elif [[ "$prj_type" == "vite-mono" ]]; then
+		pushd $prj_dir
+		yarn config set nodeLinker node-modules
+		yarn
+		yarn add typescript concurrently --dev
+		popd
 	fi
 }
 
@@ -563,7 +655,7 @@ create_node__maints() {
 		cat <<EOF
 const fs = require('fs')
 
-const str = \`
+const str1 = \`
 import { serve } from "@hono/node-server"
 import { Hono } from "hono"
 import { serveStatic } from "@hono/node-server/serve-static"
@@ -573,18 +665,15 @@ import pathNode from "path"
 const port = 3000
 const app = new Hono()
 
-/*
 app.use(
   "/*",
   serveStatic({
     root: ".",
-    rewriteRequestPath(path) {
-      if (path.match(/^\/api\//)) return ""
-      else return pathNode.join("statics", path)
-    },
+    rewriteRequestPath: (path) => {
+      return path.match(/^\\\\/api\\\\//) ? "" : pathNode.join("statics", path)
+    }
   }),
 )
-*/
 
 const server = serve(
   {
@@ -604,16 +693,77 @@ app.get("/api/hello", (c) => {
 wss.on("connection", (ws) => {
   ws.on("message", (data) => {
     const name = data.toString().split(" ").pop()
-    ws.send(\\\`Welcome \\\${name}, Thanks for visiting my website\\\`)
+    setTimeout(() => {
+      ws.send(\\\`Welcome \\\${name}, Thanks for visiting my website\\\`)
+    }, 2000);
   })
   ws.on("close", () => {})
 })
 \`
 
 
-fs.writeFile('$src_dir/main.ts', str, (writeErr) => {
+const str2 = \`
+body {
+  background-color: #232323;
+  color: #ffffff;
+}
+\`
+
+const str3 = \`
+const wss = new WebSocket("")
+const msg = document.querySelector("#msg")
+
+wss.addEventListener("open", () => {
+  wss.send("I'm Client")
+})
+
+wss.addEventListener("message", (e) => {
+  console.log(e.data)
+  msg.innerHTML = e.data
+})
+\`
+
+const str4 = \`
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Home</title>
+    <link href="./main.css" rel="stylesheet" />
+  </head>
+  <body>
+    <div id="msg"></div>
+    <h1>Simple Ui without anything fancy :)</h1>
+    <script src="./main.js"></script>
+  </body>
+</html>
+\`
+
+fs.writeFile('$src_dir/main.ts', str1, (writeErr) => {
     if (writeErr) {
         console.error('Error writing $src_dir/main.ts:', writeErr)
+        return
+    }
+})
+
+fs.writeFile('$statics_dir/main.css', str2, (writeErr) => {
+    if (writeErr) {
+        console.error('Error writing $statics_dir/main.css:', writeErr)
+        return
+    }
+})
+
+fs.writeFile('$statics_dir/main.js', str3, (writeErr) => {
+    if (writeErr) {
+        console.error('Error writing $statics_dir/main.js:', writeErr)
+        return
+    }
+})
+
+fs.writeFile('$statics_dir/index.html', str4, (writeErr) => {
+    if (writeErr) {
+        console.error('Error writing $statics_dir/index.html:', writeErr)
         return
     }
 })
@@ -639,21 +789,42 @@ create_project() {
 	# fi
 }
 
+init_project() {
+	local prj_dir=${1:-"."}
+	local prj_name=${2:-"my-app"}
+	local prj_type=${3:-"vite-web"}
+
+	if [[ -d $prj_dir ]]; then
+		error "Project already exist in \"$prj_dir\"!!"
+	else
+		mkdir -p "$prj_dir" ||
+			error "Failed to create project directory \"$prj_dir\""
+	fi
+
+	pushd $prj_dir
+
+	info $prj_dir
+	yarn init --yes
+	popd
+}
+
 plugin_swc() {
 	local prj_dir=${1:-"."}
+	local prj_type=${2:-"vite-web"}
 	local dir="$prj_dir/plugin"
 	local plugin_dir="$dir/swc"
 
-	pushd $prj_dir
-	if [[ ! -d $plugin_dir ]]; then
-		mkdir -p "$plugin_dir" ||
-			error "Failed to create directory \"$plugin_dir\""
-	fi
+	if [ "$prj_type" == "vite-web" ] || [ "$prj_type" == "vite-node" ]; then
+		pushd $prj_dir
+		if [[ ! -d $plugin_dir ]]; then
+			mkdir -p "$plugin_dir" ||
+				error "Failed to create directory \"$plugin_dir\""
+		fi
 
-	yarn add @swc/core @rollup/pluginutils --dev
+		yarn add @swc/core @rollup/pluginutils --dev
 
-	node -e "$(
-		cat <<EOF
+		node -e "$(
+			cat <<EOF
 const fs = require('fs')
 
 const str = \`
@@ -716,11 +887,46 @@ fs.writeFile('$plugin_dir/index.ts', str, (writeErr) => {
     }
 })
 EOF
-	)"
-	popd
+		)"
+		popd
+	fi
 }
 
-##############  input validation ##############
+##############  fn ##############
+create_project() {
+	local prj_dir=${1:-"."}
+	local prj_name=${2:-"my_app"}
+	local prj_type=${3:-"vite-web"}
+
+	info_bold "Start creating $prj_name project ..."
+
+	init_project $prj_dir $prj_name $prj_type
+	config_packagejs $prj_dir $prj_name $prj_type
+	config_tsconfigjson $prj_dir $prj_type
+	config_prettier $prj_dir
+	config_git $prj_dir
+	config_yarn $prj_dir $prj_type
+	plugin_swc $prj_dir $prj_type
+	config_viteconfigts $prj_dir $prj_type
+
+	if [[ "$prj_type" == "vite-web" ]]; then
+		create_indexhtml $prj_dir $prj_name
+		create_maints $prj_dir
+	elif [[ "$prj_type" == "vite-node" ]]; then
+		create_node__maints $prj_dir
+	fi
+
+	if [[ "$prj_type" == "vite-mono" ]]; then
+		config_scripts $prj_dir $prj_type
+		create_project "$prj_dir/packages/ui" "@$prj_name/ui" "vite-web"
+		create_project "$prj_dir/packages/server" "@$prj_name/server" "vite-node"
+	fi
+
+	success "$prj_name project done :)"
+}
+##############  ##############
+
+##############  Input Validation ##############
 if [[ ! $# -lt 1 ]]; then
 	project_name=$1
 else
@@ -730,6 +936,7 @@ fi
 project_type__options=(
 	"vite-web" "" on
 	"vite-node" "" off
+	"vite-mono" "" off
 )
 
 project_type__keys=()
@@ -762,22 +969,7 @@ if [[ $valid_type == false ]]; then
 	done
 	error "$project_type__error_msg"
 fi
-##############   ##############
+##############  ##############
 
 project_dir="$PWD/$project_name"
-create_project $project_dir $project_type
-
-config_packagejs $project_dir $project_type
-config_tsconfigjson $project_dir $project_type
-config_prettier $project_dir
-config_git $project_dir
-config_yarn $project_dir $project_type
-plugin_swc $project_dir
-config_viteconfigts $project_dir $project_type
-
-if [[ "$project_type" == "vite-web" ]]; then
-	create_indexhtml $project_dir $project_name
-	create_maints $project_dir
-elif [[ "$project_type" == "vite-node" ]]; then
-	create_node__maints $project_dir
-fi
+create_project $project_dir $project_name $project_type
